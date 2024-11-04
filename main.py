@@ -79,7 +79,7 @@ class OrganizerApp(tk.Tk):
     def organize(self):
         year_entry_text = self.year_entry.get()
         self.year1 = year_entry_text if year_entry_text != self.year_placeholder else ''
-        if not self.year1:
+        if not self.year_valid(self.year1):
             self.year_error.config(text='Invalid year format. Please use YYYY-YYYY')
         else:
             self.year_error.config(text='')
@@ -99,6 +99,23 @@ class OrganizerApp(tk.Tk):
         
         print('ORGANIZING')
         self.organize_success.config(text='Organized successfully!')
+
+    def year_valid(self, year) -> bool:
+        if not year:
+            return False
+        if len(year) != 9:
+            return False
+        if year[4] != '-':
+            return False
+
+        y1 = year[:4]
+        y2 = year[5:]
+        if not y1.isdigit() or not y2.isdigit():
+            return False
+        if not (int(y2) - int(y1) == 1):
+            return False
+
+        return True
         
 if __name__ == '__main__':
     OA = OrganizerApp()
