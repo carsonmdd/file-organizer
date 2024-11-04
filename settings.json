@@ -1,0 +1,11 @@
+{
+    "file_structure": {
+        "2D": {
+            "CSVs": ["csv"]
+        },
+        "3D": {
+            "Python": ["py"],
+            "PDFs": ["pdf"]
+        }
+    }
+}
