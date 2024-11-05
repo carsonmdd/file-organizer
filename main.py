@@ -3,7 +3,9 @@ from tkinter import filedialog, messagebox
 import os, sys
 import json
 from datetime import datetime
+import shutil
 from custom_widgets import CustomEntry
+from path_utils import *
 
 class OrganizerApp(tk.Tk):
     def __init__(self):
@@ -26,7 +28,7 @@ class OrganizerApp(tk.Tk):
     def load_settings(self):
         '''Reads in settings from a file'''
         data = {}
-        filepath = self.external_path('settings.json')
+        filepath = external_path('settings.json')
         try:
             with open(filepath) as file:
                 data = json.load(file)
@@ -93,18 +95,6 @@ class OrganizerApp(tk.Tk):
     def display_error(self, msg):
         messagebox.showerror('Error', msg)
         sys.exit()
-        
-    def external_path(self, relative_path):
-        '''Gets path for resource in same directory as app file on macOS'''
-        # If running as exe,
-        if getattr(sys, 'frozen', False):
-            exe_path = os.path.abspath(sys.executable)
-            base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(exe_path))))
-        # else running as script
-        else:
-            base_path = os.path.abspath('.')
-
-        return os.path.join(base_path, relative_path)
 
     def create_input_field(self):
         self.input_frame = tk.Frame(self)
@@ -193,10 +183,22 @@ class OrganizerApp(tk.Tk):
                 if ctime >= start and ctime <= end:
                     ext = os.path.splitext(filename)[1][1:]
                     dest = self.get_file_dest(info, ext)
-                    print(filename)
-                    print(dest)
-                    print()
+                    self.safe_move_file(file_path, dest)
                     break
+
+    def safe_move_file(self, src, dest):
+        try:
+            os.makedirs(dest, exist_ok=True)
+
+            filename =  os.path.basename(src)
+            final_file_path = os.path.join(dest, filename)
+            if os.path.isfile(final_file_path):
+                final_file_path = new_path(final_file_path)
+
+            shutil.move(src, final_file_path)
+            print(f'MOVED {filename}')
+        except Exception as e:
+            self.display_error(f'Error occured while moving file: {e}')
     
     def get_file_dest(self, info, ext):
         year = info.get('year')
