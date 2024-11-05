@@ -8,7 +8,7 @@ from custom_widgets import CustomEntry
 class OrganizerApp(tk.Tk):
     def __init__(self):
         self.settings = self.load_settings()
-        print(self.settings.get('file_structure'))
+        self.ranges = self.create_ranges()
         super().__init__()
         self.title('File Organizer')
 
@@ -31,20 +31,68 @@ class OrganizerApp(tk.Tk):
             with open(filepath) as file:
                 data = json.load(file)
         except Exception as e:
-            messagebox.showerror('Error', f'Error opening settings file: {e}')
-            sys.exit()
+            self.display_error(f'Error opening settings file: {e}')
 
+        self.check_years(data)
+        self.check_file_structure(data)
+
+        return data
+        
+    def create_ranges(self):
+        # ranges = {
+        #     (12387, 182380): {
+        #         'year': 'year1',
+        #         'sem': 'sem1'
+        #     }
+        # }
+        ranges = {}
+        for year, sems in self.settings.get('years').items():
+            sem1_rng = self.gen_range(year, 'sem1', sems.get('sem1'))
+            ranges[sem1_rng[0]] = sem1_rng[1]
+            sem2_rng = self.gen_range(year, 'sem2', sems.get('sem2'))
+            ranges[sem2_rng[0]] = sem2_rng[1]
+
+        # for item in ranges.items():
+        #     print(item)
+        return ranges
+
+    def gen_range(self, year: str, sem_name, sem: str) -> tuple[tuple[int], dict[str, str]]:
+        sem_dates = sem.split('-')
+        sem_start = self.get_timestamp(sem_dates[0], True)
+        sem_end = self.get_timestamp(sem_dates[1], False)
+
+        return (sem_start, sem_end), {'year': year, 'sem': sem_name}
+
+    def get_timestamp(self, date, range_start):
+        try:
+            if range_start:
+                datetime_obj = datetime.strptime(date, '%m/%d/%Y')
+            else:
+                datetime_obj = datetime.strptime(date, '%m/%d/%Y').replace(hour=23, minute=59, second=59)
+            return datetime_obj.timestamp()
+        except Exception as e:
+            self.display_error(f'Invalid date with error: {e}')
+
+    def check_years(self, data):
+        if not data.get('years'):
+            self.display_error('No years found in settings')
+        for year in data.get('years').keys():
+            if not data.get('years').get(year).get('sem1'):
+                self.display_error(f'No {year}/sem1 found in settings')
+            if not data.get('years').get(year).get('sem2'):
+                self.display_error(f'No {year}/sem2 found in settings')
+    
+    def check_file_structure(self, data):
         if not data.get('file_structure'):
-            messagebox.showerror('Error', 'No file_structure found in settings')
-            sys.exit()
+            self.display_error('No file_structure found in settings')
         elif not data.get('file_structure').get('2D'):
-            messagebox.showerror('Error', 'No 2D found in settings')
-            sys.exit()
+            self.display_error('No 2D found in settings')
         elif not data.get('file_structure').get('3D'):
-            messagebox.showerror('Error', 'No 3D found in settings')
-            sys.exit()
-        else:
-            return data
+            self.display_error('No 3D found in settings')
+
+    def display_error(self, msg):
+        messagebox.showerror('Error', msg)
+        sys.exit()
         
     def external_path(self, relative_path):
         '''Gets path for resource in same directory as app file on macOS'''
@@ -120,30 +168,56 @@ class OrganizerApp(tk.Tk):
             return
         
         print('ORGANIZING')
-        self.make_dirs()
         self.move_files()
         self.organize_success.config(text='Organized successfully!')
     
-    def make_dirs(self):
+    def move_files(self):
         '''
         - Create year folders
-        - Create semester and other folders
+        - Create semester folders
+        - Create 2D/3D folders
         - Create name folders
 
-        aug 26 - dec 16; jan 27 - may 16
-        Aug 1 - Dec 31; Jan 1 - July 31
-        Aug-Dec; Jan-July
+        For each file's creation date,
+            If date is within a range,
+                Put file in range dir
         '''
-        min_year, max_year = self.get_years()
-    
-    def get_years(self):
         for filename in os.listdir(self.input_dir):
-            print(filename)
+            file_path = os.path.join(self.input_dir, filename)
+            if not os.path.isfile(file_path):
+                continue
 
-        return None, None
+            ctime = os.path.getctime(file_path)
+            for range, info in self.ranges.items():
+                start, end = range
+                if ctime >= start and ctime <= end:
+                    ext = os.path.splitext(filename)[1][1:]
+                    dest = self.get_file_dest(info, ext)
+                    print(filename)
+                    print(dest)
+                    print()
+                    break
+    
+    def get_file_dest(self, info, ext):
+        year = info.get('year')
+        sem = info.get('sem')
+        type, name = '', ''
+        for n, exts in self.settings.get('file_structure').get('2D').items():
+            if ext in exts:
+                type = '2D'
+                name = n
+                break
+        for n, exts in self.settings.get('file_structure').get('3D').items():
+            if ext in exts:
+                type = '3D'
+                name = n
+                break
 
-    def move_files(self):
-        return
+        if not type or not name:
+            return None
+        
+        path = os.path.join(self.output_dir, year, sem, type, name)
+        return os.path.normpath(path)
         
 if __name__ == '__main__':
     OA = OrganizerApp()
