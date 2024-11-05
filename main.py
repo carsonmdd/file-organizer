@@ -54,8 +54,6 @@ class OrganizerApp(tk.Tk):
             sem2_rng = self.gen_range(year, 'sem2', sems.get('sem2'))
             ranges[sem2_rng[0]] = sem2_rng[1]
 
-        # for item in ranges.items():
-        #     print(item)
         return ranges
 
     def gen_range(self, year: str, sem_name, sem: str) -> tuple[tuple[int], dict[str, str]]:
@@ -153,11 +151,9 @@ class OrganizerApp(tk.Tk):
             self.output_error.config(text='')
         
         if not (self.input_dir and self.output_dir):
-            print('INVALID ENTRIES')
             self.organize_success.config(text='')
             return
         
-        print('ORGANIZING')
         self.move_files()
         self.organize_success.config(text='Organized successfully!')
     
@@ -183,6 +179,8 @@ class OrganizerApp(tk.Tk):
                 if ctime >= start and ctime <= end:
                     ext = os.path.splitext(filename)[1][1:]
                     dest = self.get_file_dest(info, ext)
+                    if not dest:
+                        continue
                     self.safe_move_file(file_path, dest)
                     break
 
@@ -196,7 +194,6 @@ class OrganizerApp(tk.Tk):
                 final_file_path = new_path(final_file_path)
 
             shutil.move(src, final_file_path)
-            print(f'MOVED {filename}')
         except Exception as e:
             self.display_error(f'Error occured while moving file: {e}')
     
